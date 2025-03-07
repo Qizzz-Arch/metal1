@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="金属材料线膨胀自动化分析系统 - 由许麒政开发的材料科学分析工具">
+    <meta name="keywords" content="金属材料,线膨胀系数,材料科学,自动化分析,许麒政">
+    <meta name="author" content="许麒政">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="robots" content="index, follow">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <title>金属材料线膨胀自动化分析系统 - 许麒政</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.4/math.js"></script>
+    <style>
+        @media (max-width: 640px) {
+            .table-container {
+                overflow-x: auto;
+            }
+        }
+        .calculation-process {
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8">金属材料线膨胀自动化分析系统</h1>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 左侧面板：数据输入和参数设置 -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                    <h2 class="text-xl font-semibold mb-4">预设参数</h2>
+                    
+                    <!-- 材料类型选择 -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">材料类型</label>
+                        <select id="materialType" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <option value="紫铜">紫铜</option>
+                            <option value="铝">铝</option>
+                            <option value="铁">铁</option>
+                            <option value="不锈钢">不锈钢</option>
+                        </select>
+                    </div>
+
+                    <!-- 自动填充设置 -->
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">起始温度 (°C)</label>
+                            <input type="number" id="startTemp" value="20.0" step="0.1" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">温度步长 (°C)</label>
+                            <input type="number" id="tempStep" value="10.0" step="0.1" min="0.1"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+                    <button id="autoFill" class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mb-4">
+                        自动填充温度
+                    </button>
+
+                    <!-- 数据表格 -->
+                    <div class="table-container">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-2 bg-gray-50">序号</th>
+                                    <th class="px-4 py-2 bg-gray-50">实测温度 (°C)</th>
+                                    <th class="px-4 py-2 bg-gray-50">千分表读数 (mm)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataTable">
+                                <!-- JavaScript 将动态填充这里 -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="grid grid-cols-3 gap-4 mt-4">
+                        <button id="calculate" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                            计算
+                        </button>
+                        <button id="showProcess" class="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700" disabled>
+                            计算过程
+                        </button>
+                        <button id="export" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                            导出
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧面板：结果显示和图表 -->
+            <div class="lg:col-span-2">
+                <!-- 计算结果 -->
+                <div id="results" class="bg-white rounded-lg shadow-lg p-6 mb-8 hidden">
+                    <h2 class="text-xl font-semibold mb-4">计算结果</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="bg-gray-50 p-4 rounded">
+                            <h3 class="font-medium">最小二乘法</h3>
+                            <p id="lsResult" class="text-lg"></p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded">
+                            <h3 class="font-medium">逐差法</h3>
+                            <p id="diffResult" class="text-lg"></p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded">
+                            <h3 class="font-medium">相关系数 (R²)</h3>
+                            <p id="rSquared" class="text-lg"></p>
+                        </div>
+                    </div>
+                    <div id="chart" class="w-full h-96"></div>
+                </div>
+
+                <!-- 计算过程对话框 -->
+                <div id="processDialog" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
+                    <div class="bg-white rounded-lg shadow-lg p-6 max-w-4xl max-h-[80vh] overflow-y-auto">
+                        <h2 class="text-xl font-semibold mb-4">计算过程</h2>
+                        <div id="processContent" class="calculation-process bg-gray-50 p-4 rounded"></div>
+                        <button class="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700" onclick="document.getElementById('processDialog').classList.add('hidden')">
+                            关闭
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 常量定义
+        const L0 = 500; // 初始长度，单位：mm
+
+        // 初始化数据表格
+        const dataTable = document.getElementById('dataTable');
+        for (let i = 0; i < 8; i++) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="px-4 py-2 text-center">${i + 1}</td>
+                <td class="px-4 py-2">
+                    <input type="number" step="0.1" class="w-full px-2 py-1 border rounded temperature" 
+                           placeholder="温度">
+                </td>
+                <td class="px-4 py-2">
+                    <input type="number" step="0.001" class="w-full px-2 py-1 border rounded reading" 
+                           placeholder="读数">
+                </td>
+            `;
+            dataTable.appendChild(row);
+        }
+
+        // 自动填充温度数据
+        document.getElementById('autoFill').addEventListener('click', function() {
+            const startTemp = parseFloat(document.getElementById('startTemp').value);
+            const step = parseFloat(document.getElementById('tempStep').value);
+            
+            const temperatures = document.getElementsByClassName('temperature');
+            for (let i = 0; i < temperatures.length; i++) {
+                temperatures[i].value = (startTemp + i * step).toFixed(1);
+            }
+        });
+
+        // 计算函数
+        function calculate() {
+            // 获取数据
+            const temperatures = Array.from(document.getElementsByClassName('temperature'))
+                .map(input => parseFloat(input.value));
+            const readings = Array.from(document.getElementsByClassName('reading'))
+                .map(input => parseFloat(input.value));
+
+            // 验证数据
+            if (temperatures.some(isNaN) || readings.some(isNaN)) {
+                alert('请填写完整的实验数据！');
+                return null;
+            }
+
+            // 计算ΔT和ΔL
+            const deltaT = temperatures.map(t => t - temperatures[0]);
+            const deltaL = readings.map(r => r - readings[0]);
+
+            // 最小二乘法计算
+            const n = temperatures.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+            for (let i = 0; i < n; i++) {
+                sumX += deltaT[i];
+                sumY += deltaL[i];
+                sumXY += deltaT[i] * deltaL[i];
+                sumX2 += deltaT[i] * deltaT[i];
+            }
+
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+
+            // 计算R²
+            const yMean = sumY / n;
+            let totalSS = 0, residualSS = 0;
+            const fitLine = deltaT.map(t => slope * t + intercept);
+
+            for (let i = 0; i < n; i++) {
+                totalSS += Math.pow(deltaL[i] - yMean, 2);
+                residualSS += Math.pow(deltaL[i] - fitLine[i], 2);
+            }
+
+            const rSquared = 1 - (residualSS / totalSS);
+
+            // 逐差法计算
+            const deltaTDiff = [];
+            const deltaLDiff = [];
+            for (let i = 1; i < n; i++) {
+                deltaTDiff.push(temperatures[i] - temperatures[i-1]);
+                deltaLDiff.push(readings[i] - readings[i-1]);
+            }
+
+            const diffAlpha = math.mean(deltaLDiff) / (L0 * math.mean(deltaTDiff));
+
+            // 计算线膨胀系数（最小二乘法）
+            const lsAlpha = slope / L0;
+
+            return {
+                lsAlpha,
+                diffAlpha,
+                rSquared,
+                temperatures,
+                deltaL,
+                fitLine,
+                slope,
+                intercept,
+                deltaT
+            };
+        }
+
+        // 显示计算过程
+        function showCalculationProcess(results) {
+            const process = `计算过程：
+
+1. 数据预处理
+   初始长度 L₀ = ${L0} mm
+   温度数据 T = [${results.temperatures.join(', ')}] ℃
+   读数数据 L = [${results.deltaL.map(l => l.toFixed(3)).join(', ')}] mm
+
+2. 最小二乘法计算
+   斜率 k = ${results.slope.toExponential(4)}
+   截距 b = ${results.intercept.toExponential(4)}
+   线膨胀系数 α = k/L₀ = ${results.lsAlpha.toExponential(6)} /℃
+
+3. 逐差法计算
+   线膨胀系数 α = ${results.diffAlpha.toExponential(6)} /℃
+
+4. 拟合优度
+   R² = ${results.rSquared.toFixed(6)}`;
+
+            document.getElementById('processContent').textContent = process;
+            document.getElementById('processDialog').classList.remove('hidden');
+        }
+
+        // 计算按钮事件
+        document.getElementById('calculate').addEventListener('click', function() {
+            const results = calculate();
+            if (!results) return;
+
+            // 显示结果
+            document.getElementById('results').classList.remove('hidden');
+            document.getElementById('lsResult').textContent = `α = ${(results.lsAlpha * 1e6).toFixed(6)} × 10⁻⁶ /℃`;
+            document.getElementById('diffResult').textContent = `α = ${(results.diffAlpha * 1e6).toFixed(6)} × 10⁻⁶ /℃`;
+            document.getElementById('rSquared').textContent = results.rSquared.toFixed(6);
+
+            // 启用计算过程按钮
+            document.getElementById('showProcess').disabled = false;
+
+            // 绘制图表
+            const experimentalData = {
+                x: results.deltaT,
+                y: results.deltaL,
+                mode: 'markers',
+                type: 'scatter',
+                name: '实验数据',
+                marker: { size: 8 }
+            };
+
+            const fittedLine = {
+                x: results.deltaT,
+                y: results.fitLine,
+                mode: 'lines',
+                type: 'scatter',
+                name: '最小二乘法拟合',
+                line: { color: 'red' }
+            };
+
+            const layout = {
+                title: 'ΔL-ΔT 变化曲线',
+                xaxis: { title: 'ΔT (℃)' },
+                yaxis: { title: 'ΔL (mm)' }
+            };
+
+            Plotly.newPlot('chart', [experimentalData, fittedLine], layout);
+        });
+
+        // 显示计算过程按钮事件
+        document.getElementById('showProcess').addEventListener('click', function() {
+            const results = calculate();
+            if (results) {
+                showCalculationProcess(results);
+            }
+        });
+
+        // 导出按钮事件
+        document.getElementById('export').addEventListener('click', function() {
+            const results = calculate();
+            if (!results) return;
+
+            const materialType = document.getElementById('materialType').value;
+            const data = {
+                materialType,
+                initialLength: L0,
+                measurements: results.temperatures.map((temp, i) => ({
+                    temperature: temp,
+                    reading: document.getElementsByClassName('reading')[i].value,
+                    deltaL: results.deltaL[i]
+                })),
+                results: {
+                    lsAlpha: results.lsAlpha,
+                    diffAlpha: results.diffAlpha,
+                    rSquared: results.rSquared
+                }
+            };
+
+            // 创建CSV内容
+            const csvContent = `金属材料线膨胀系数测量实验数据
+材料类型：${materialType}
+初始长度：${L0} mm
+
+序号,温度(℃),千分表读数(mm),ΔL(mm)
+${results.temperatures.map((temp, i) => 
+    `${i + 1},${temp},${document.getElementsByClassName('reading')[i].value},${results.deltaL[i].toFixed(3)}`
+).join('\n')}
+
+计算结果：
+最小二乘法：α = ${(results.lsAlpha * 1e6).toFixed(6)} × 10⁻⁶ /℃
+逐差法：α = ${(results.diffAlpha * 1e6).toFixed(6)} × 10⁻⁶ /℃
+相关系数：R² = ${results.rSquared.toFixed(6)}`;
+
+            // 创建下载链接
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `实验数据_${materialType}_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+</body>
+</html> 
